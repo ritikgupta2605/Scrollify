@@ -39,12 +39,16 @@ export default function FeatureShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
   const sectionRef = useRef(null);
   const stickyRef = useRef(null);
+  const phoneRef = useRef(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
-    const el = sectionRef.current;
+    const el = phoneRef.current;
     if (!el) return;
-    const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { threshold: 0.8 });
+    const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { 
+      threshold: 1.0,
+      rootMargin: '0px 0px 0px 0px'
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -53,6 +57,29 @@ export default function FeatureShowcase() {
 
   const go = useCallback((delta) => {
     setActiveIndex((i) => Math.min(FEATURES.length - 1, Math.max(0, i + delta)));
+  }, []);
+
+  // Mobile scroll handling for sticky behavior
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) return;
+    
+    function onScroll() {
+      if (phoneRef.current) {
+        const rect = phoneRef.current.getBoundingClientRect();
+        const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+        
+        if (isVisible) {
+          setInView(true);
+        } else {
+          setInView(false);
+        }
+      }
+    }
+    
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useEffect(() => {
@@ -108,11 +135,11 @@ export default function FeatureShowcase() {
                 </div>
               </div>
 
-              <div className="phone-wrap" aria-hidden>
-                <div className="phone real">
-                  <img src={active.image} alt="iPhone feature" />
-                </div>
-              </div>
+                             <div className="phone-wrap" aria-hidden>
+                 <div className="phone real" ref={phoneRef}>
+                   <img src={active.image} alt="iPhone feature" />
+                 </div>
+               </div>
 
               <div className="right">
                 <h3>Feature Showcase</h3>
@@ -133,5 +160,3 @@ export default function FeatureShowcase() {
     </div>
   );
 }
-
-
