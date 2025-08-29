@@ -45,11 +45,34 @@ export default function FeatureShowcase() {
   useEffect(() => {
     const el = phoneRef.current;
     if (!el) return;
+    
+    // Primary method: Intersection Observer
     const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { 
       threshold: 1.0,
       rootMargin: '0px 0px 0px 0px'
     });
     observer.observe(el);
+    
+    // Fallback method: Manual scroll detection for mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      function checkVisibility() {
+        const rect = el.getBoundingClientRect();
+        const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        setInView(isFullyVisible);
+      }
+      
+      // Check on load and resize
+      checkVisibility();
+      window.addEventListener('resize', checkVisibility);
+      
+      return () => {
+        observer.disconnect();
+        window.removeEventListener('resize', checkVisibility);
+      };
+    }
+    
     return () => observer.disconnect();
   }, []);
 
@@ -68,9 +91,10 @@ export default function FeatureShowcase() {
     function onScroll() {
       if (phoneRef.current) {
         const rect = phoneRef.current.getBoundingClientRect();
-        const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+        // Check if the entire phone image is visible
+        const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
         
-        if (isVisible) {
+        if (isFullyVisible) {
           setInView(true);
         } else {
           setInView(false);
@@ -78,8 +102,14 @@ export default function FeatureShowcase() {
       }
     }
     
+    // Use both scroll and touchmove events for better mobile detection
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('touchmove', onScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('touchmove', onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -106,11 +136,37 @@ export default function FeatureShowcase() {
   }, [inView, activeIndex, go]);
 
   useEffect(() => {
-    let startX = 0; let active = false; const node = stickyRef.current; if (!node) return;
-    const onStart = (e) => { active = true; startX = e.touches[0].clientX; };
-    const onEnd = (e) => { if (!active) return; const dx = e.changedTouches[0].clientX - startX; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); active = false; };
-    node.addEventListener('touchstart', onStart, { passive: true }); node.addEventListener('touchend', onEnd, { passive: true });
-    return () => { node.removeEventListener('touchstart', onStart); node.removeEventListener('touchend', onEnd); };
+    let startX = 0; 
+    let startY = 0;
+    let active = false; 
+    const node = stickyRef.current; 
+    if (!node) return;
+    
+    const onStart = (e) => { 
+      active = true; 
+      startX = e.touches[0].clientX; 
+      startY = e.touches[0].clientY;
+    };
+    
+    const onEnd = (e) => { 
+      if (!active) return; 
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      
+      // Only trigger if horizontal swipe is more than vertical (to avoid interfering with scroll)
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+        go(dx < 0 ? 1 : -1);
+      }
+      active = false; 
+    };
+    
+    node.addEventListener('touchstart', onStart, { passive: true }); 
+    node.addEventListener('touchend', onEnd, { passive: true });
+    
+    return () => { 
+      node.removeEventListener('touchstart', onStart); 
+      node.removeEventListener('touchend', onEnd); 
+    };
   }, [go]);
 
   const active = FEATURES[activeIndex];
