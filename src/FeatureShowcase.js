@@ -46,34 +46,58 @@ export default function FeatureShowcase() {
     const el = phoneRef.current;
     if (!el) return;
     
-    // Primary method: Intersection Observer
-    const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { 
-      threshold: 1.0,
-      rootMargin: '0px 0px 0px 0px'
-    });
-    observer.observe(el);
-    
-    // Fallback method: Manual scroll detection for mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
+      // Mobile: Use scroll event listener instead of Intersection Observer
       function checkVisibility() {
         const rect = el.getBoundingClientRect();
+        // Check if the entire phone image is visible in the viewport
         const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
         setInView(isFullyVisible);
       }
       
-      // Check on load and resize
+      // Check immediately and on scroll
       checkVisibility();
+      window.addEventListener('scroll', checkVisibility, { passive: true });
       window.addEventListener('resize', checkVisibility);
+      window.addEventListener('orientationchange', checkVisibility);
+      
+      // Also check on touch events for better mobile responsiveness
+      let touchStartY = 0;
+      const handleTouchStart = (e) => {
+        touchStartY = e.touches[0].clientY;
+      };
+      
+      const handleTouchMove = (e) => {
+        const touchY = e.touches[0].clientY;
+        const deltaY = touchY - touchStartY;
+        
+        // If significant vertical movement, check visibility
+        if (Math.abs(deltaY) > 10) {
+          checkVisibility();
+        }
+      };
+      
+      document.addEventListener('touchstart', handleTouchStart, { passive: true });
+      document.addEventListener('touchmove', handleTouchMove, { passive: true });
       
       return () => {
-        observer.disconnect();
+        window.removeEventListener('scroll', checkVisibility);
         window.removeEventListener('resize', checkVisibility);
+        window.removeEventListener('orientationchange', checkVisibility);
+        document.removeEventListener('touchstart', handleTouchStart);
+        document.removeEventListener('touchmove', handleTouchMove);
       };
+    } else {
+      // Desktop: Use Intersection Observer
+      const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { 
+        threshold: 1.0,
+        rootMargin: '0px 0px 0px 0px'
+      });
+      observer.observe(el);
+      return () => observer.disconnect();
     }
-    
-    return () => observer.disconnect();
   }, []);
 
   const lastWheelRef = useRef(0);
@@ -82,35 +106,7 @@ export default function FeatureShowcase() {
     setActiveIndex((i) => Math.min(FEATURES.length - 1, Math.max(0, i + delta)));
   }, []);
 
-  // Mobile scroll handling for sticky behavior
-  useEffect(() => {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    if (!isMobile) return;
-    
-    function onScroll() {
-      if (phoneRef.current) {
-        const rect = phoneRef.current.getBoundingClientRect();
-        // Check if the entire phone image is visible
-        const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-        
-        if (isFullyVisible) {
-          setInView(true);
-        } else {
-          setInView(false);
-        }
-      }
-    }
-    
-    // Use both scroll and touchmove events for better mobile detection
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('touchmove', onScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('touchmove', onScroll);
-    };
-  }, []);
+
 
   useEffect(() => {
     function onWheel(e) {
