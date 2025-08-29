@@ -46,14 +46,40 @@ export default function FeatureShowcase() {
     const el = phoneRef.current;
     if (!el) return;
     
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // More reliable mobile detection
+    const isMobile = () => {
+      const userAgent = navigator.userAgent;
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      
+      console.log('Mobile detection:', {
+        userAgent: userAgent.substring(0, 50) + '...',
+        hasTouch,
+        isSmallScreen,
+        isMobileUA,
+        result: isMobileUA || isSmallScreen || hasTouch
+      });
+      
+      return isMobileUA || isSmallScreen || hasTouch;
+    };
     
-    if (isMobile) {
+    if (isMobile()) {
       // Mobile: Use scroll event listener instead of Intersection Observer
       function checkVisibility() {
         const rect = el.getBoundingClientRect();
         // Check if the entire phone image is visible in the viewport
         const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        
+        // Debug logging for mobile
+        console.log('Mobile visibility check:', {
+          rectTop: rect.top,
+          rectBottom: rect.bottom,
+          windowHeight: window.innerWidth,
+          isFullyVisible,
+          inView: isFullyVisible
+        });
+        
         setInView(isFullyVisible);
       }
       
