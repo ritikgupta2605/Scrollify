@@ -174,7 +174,43 @@ export default function FeatureShowcase() {
     };
   }, []);
 
+  // Auto-advance features when sticky
+  useEffect(() => {
+    if (!inView) {
+      // Clear auto-advance when not in view
+      if (autoAdvanceRef.current) {
+        clearInterval(autoAdvanceRef.current);
+        autoAdvanceRef.current = null;
+      }
+      return;
+    }
+
+    // Start auto-advance when sticky
+    autoAdvanceRef.current = setInterval(() => {
+      setActiveIndex((currentIndex) => {
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= FEATURES.length) {
+          // Stop auto-advance when reaching the end
+          if (autoAdvanceRef.current) {
+            clearInterval(autoAdvanceRef.current);
+            autoAdvanceRef.current = null;
+          }
+          return currentIndex; // Stay at last feature
+        }
+        return nextIndex;
+      });
+    }, 3000); // Advance every 3 seconds
+
+    return () => {
+      if (autoAdvanceRef.current) {
+        clearInterval(autoAdvanceRef.current);
+        autoAdvanceRef.current = null;
+      }
+    };
+  }, [inView]);
+
   const lastWheelRef = useRef(0);
+  const autoAdvanceRef = useRef(null);
 
   const go = useCallback((delta) => {
     setActiveIndex((i) => Math.min(FEATURES.length - 1, Math.max(0, i + delta)));
@@ -190,6 +226,13 @@ export default function FeatureShowcase() {
       const now = Date.now();
       const throttleOk = now - lastWheelRef.current > 250;
       if (!throttleOk) { e.preventDefault(); return; }
+      
+      // Pause auto-advance when user manually scrolls
+      if (autoAdvanceRef.current) {
+        clearInterval(autoAdvanceRef.current);
+        autoAdvanceRef.current = null;
+      }
+      
       if (e.deltaY > 0 && !atEnd) {
         e.preventDefault();
         lastWheelRef.current = now;
@@ -216,6 +259,12 @@ export default function FeatureShowcase() {
       active = true; 
       startX = e.touches[0].clientX; 
       startY = e.touches[0].clientY;
+      
+      // Pause auto-advance when user touches
+      if (autoAdvanceRef.current) {
+        clearInterval(autoAdvanceRef.current);
+        autoAdvanceRef.current = null;
+      }
     };
     
     const onEnd = (e) => { 
