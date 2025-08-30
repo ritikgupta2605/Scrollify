@@ -46,41 +46,26 @@ export default function FeatureShowcase() {
     const el = phoneRef.current;
     if (!el) return;
     
-    // More reliable mobile detection
+    // Simplified mobile detection - force mobile mode for touch devices
     const isMobile = () => {
-      const userAgent = navigator.userAgent;
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth <= 768;
-      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-      
-      console.log('Mobile detection:', {
-        userAgent: userAgent.substring(0, 50) + '...',
-        hasTouch,
-        isSmallScreen,
-        isMobileUA,
-        result: isMobileUA || isSmallScreen || hasTouch
-      });
-      
-      return isMobileUA || isSmallScreen || hasTouch;
+      return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     };
     
     if (isMobile()) {
       // Mobile: Use scroll event listener instead of Intersection Observer
       function checkVisibility() {
         const rect = el.getBoundingClientRect();
-        // Check if the entire phone image is visible in the viewport
-        const isFullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        // Check if the phone image is mostly visible in the viewport
+        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
         
-        // Debug logging for mobile
         console.log('Mobile visibility check:', {
           rectTop: rect.top,
           rectBottom: rect.bottom,
-          windowHeight: window.innerWidth,
-          isFullyVisible,
-          inView: isFullyVisible
+          windowHeight: window.innerHeight,
+          isVisible
         });
         
-        setInView(isFullyVisible);
+        setInView(isVisible);
       }
       
       // Check immediately and on scroll
@@ -88,6 +73,9 @@ export default function FeatureShowcase() {
       window.addEventListener('scroll', checkVisibility, { passive: true });
       window.addEventListener('resize', checkVisibility);
       window.addEventListener('orientationchange', checkVisibility);
+      
+      // Also check periodically for mobile
+      const interval = setInterval(checkVisibility, 100);
       
       // Also check on touch events for better mobile responsiveness
       let touchStartY = 0;
@@ -114,6 +102,7 @@ export default function FeatureShowcase() {
         window.removeEventListener('orientationchange', checkVisibility);
         document.removeEventListener('touchstart', handleTouchStart);
         document.removeEventListener('touchmove', handleTouchMove);
+        clearInterval(interval);
       };
     } else {
       // Desktop: Use Intersection Observer
