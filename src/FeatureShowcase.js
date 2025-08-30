@@ -46,73 +46,59 @@ export default function FeatureShowcase() {
     const el = phoneRef.current;
     if (!el) return;
     
-    // Simplified mobile detection - force mobile mode for touch devices
-    const isMobile = () => {
-      return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // Force mobile mode for all devices - simpler approach
+    function checkVisibility() {
+      const rect = el.getBoundingClientRect();
+      // Check if the phone image is visible in the viewport
+      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+      
+      console.log('Visibility check:', {
+        rectTop: rect.top,
+        rectBottom: rect.bottom,
+        windowHeight: window.innerHeight,
+        isVisible,
+        userAgent: navigator.userAgent.substring(0, 50)
+      });
+      
+      setInView(isVisible);
+    }
+    
+    // Check immediately and on scroll
+    checkVisibility();
+    window.addEventListener('scroll', checkVisibility, { passive: true });
+    window.addEventListener('resize', checkVisibility);
+    window.addEventListener('orientationchange', checkVisibility);
+    
+    // Also check periodically for better reliability
+    const interval = setInterval(checkVisibility, 50);
+    
+    // Also check on touch events for mobile
+    let touchStartY = 0;
+    const handleTouchStart = (e) => {
+      touchStartY = e.touches[0].clientY;
     };
     
-    if (isMobile()) {
-      // Mobile: Use scroll event listener instead of Intersection Observer
-      function checkVisibility() {
-        const rect = el.getBoundingClientRect();
-        // Check if the phone image is mostly visible in the viewport
-        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-        
-        console.log('Mobile visibility check:', {
-          rectTop: rect.top,
-          rectBottom: rect.bottom,
-          windowHeight: window.innerHeight,
-          isVisible
-        });
-        
-        setInView(isVisible);
+    const handleTouchMove = (e) => {
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchY - touchStartY;
+      
+      // If significant vertical movement, check visibility
+      if (Math.abs(deltaY) > 5) {
+        checkVisibility();
       }
-      
-      // Check immediately and on scroll
-      checkVisibility();
-      window.addEventListener('scroll', checkVisibility, { passive: true });
-      window.addEventListener('resize', checkVisibility);
-      window.addEventListener('orientationchange', checkVisibility);
-      
-      // Also check periodically for mobile
-      const interval = setInterval(checkVisibility, 100);
-      
-      // Also check on touch events for better mobile responsiveness
-      let touchStartY = 0;
-      const handleTouchStart = (e) => {
-        touchStartY = e.touches[0].clientY;
-      };
-      
-      const handleTouchMove = (e) => {
-        const touchY = e.touches[0].clientY;
-        const deltaY = touchY - touchStartY;
-        
-        // If significant vertical movement, check visibility
-        if (Math.abs(deltaY) > 10) {
-          checkVisibility();
-        }
-      };
-      
-      document.addEventListener('touchstart', handleTouchStart, { passive: true });
-      document.addEventListener('touchmove', handleTouchMove, { passive: true });
-      
-      return () => {
-        window.removeEventListener('scroll', checkVisibility);
-        window.removeEventListener('resize', checkVisibility);
-        window.removeEventListener('orientationchange', checkVisibility);
-        document.removeEventListener('touchstart', handleTouchStart);
-        document.removeEventListener('touchmove', handleTouchMove);
-        clearInterval(interval);
-      };
-    } else {
-      // Desktop: Use Intersection Observer
-      const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { 
-        threshold: 1.0,
-        rootMargin: '0px 0px 0px 0px'
-      });
-      observer.observe(el);
-      return () => observer.disconnect();
-    }
+    };
+    
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', checkVisibility);
+      window.removeEventListener('resize', checkVisibility);
+      window.removeEventListener('orientationchange', checkVisibility);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      clearInterval(interval);
+    };
   }, []);
 
   const lastWheelRef = useRef(0);
