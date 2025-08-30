@@ -41,15 +41,21 @@ export default function FeatureShowcase() {
   const stickyRef = useRef(null);
   const phoneRef = useRef(null);
   const [inView, setInView] = useState(false);
+  const [isSticky, setIsSticky] = useState(false);
 
   useEffect(() => {
     const el = phoneRef.current;
-    if (!el) return;
+    const stickyEl = stickyRef.current;
+    if (!el || !stickyEl) return;
     
-    // Force mobile mode for all devices - simpler approach
+    let stickyState = false;
+    let spacer = null;
+    
     function checkVisibility() {
       const rect = el.getBoundingClientRect();
+      
       // Check if the phone image is visible in the viewport
+      // More lenient check - if any part is visible, make it sticky
       const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
       
       console.log('Visibility check:', {
@@ -57,10 +63,57 @@ export default function FeatureShowcase() {
         rectBottom: rect.bottom,
         windowHeight: window.innerHeight,
         isVisible,
-        userAgent: navigator.userAgent.substring(0, 50)
+        stickyState
       });
       
       setInView(isVisible);
+      setIsSticky(isVisible);
+      
+      // Force sticky behavior using CSS classes
+      if (isVisible && !stickyState) {
+        stickyState = true;
+        
+        // Apply sticky styles directly to ensure it works
+        stickyEl.style.position = 'fixed';
+        stickyEl.style.top = '0';
+        stickyEl.style.left = '0';
+        stickyEl.style.right = '0';
+        stickyEl.style.width = '100%';
+        stickyEl.style.zIndex = '1000';
+        stickyEl.style.background = '#fff';
+        stickyEl.style.padding = '20px 0';
+        stickyEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        
+        // Add spacer to prevent content jump
+        spacer = document.createElement('div');
+        spacer.style.height = stickyEl.offsetHeight + 'px';
+        spacer.style.width = '100%';
+        spacer.id = 'sticky-spacer';
+        stickyEl.parentNode.insertBefore(spacer, stickyEl);
+        
+        console.log('Made sticky - height:', stickyEl.offsetHeight);
+      } else if (!isVisible && stickyState) {
+        stickyState = false;
+        
+        // Remove sticky styles
+        stickyEl.style.position = '';
+        stickyEl.style.top = '';
+        stickyEl.style.left = '';
+        stickyEl.style.right = '';
+        stickyEl.style.width = '';
+        stickyEl.style.zIndex = '';
+        stickyEl.style.background = '';
+        stickyEl.style.padding = '';
+        stickyEl.style.boxShadow = '';
+        
+        // Remove spacer
+        if (spacer && spacer.parentNode) {
+          spacer.parentNode.removeChild(spacer);
+          spacer = null;
+        }
+        
+        console.log('Removed sticky');
+      }
     }
     
     // Check immediately and on scroll
@@ -70,7 +123,10 @@ export default function FeatureShowcase() {
     window.addEventListener('orientationchange', checkVisibility);
     
     // Also check periodically for better reliability
-    const interval = setInterval(checkVisibility, 50);
+    const interval = setInterval(checkVisibility, 100);
+    
+    // Force check after a short delay to handle initial load
+    setTimeout(checkVisibility, 100);
     
     // Also check on touch events for mobile
     let touchStartY = 0;
@@ -98,6 +154,23 @@ export default function FeatureShowcase() {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchmove', handleTouchMove);
       clearInterval(interval);
+      
+      // Clean up sticky state
+      if (stickyState) {
+        stickyEl.style.position = '';
+        stickyEl.style.top = '';
+        stickyEl.style.left = '';
+        stickyEl.style.right = '';
+        stickyEl.style.width = '';
+        stickyEl.style.zIndex = '';
+        stickyEl.style.background = '';
+        stickyEl.style.padding = '';
+        stickyEl.style.boxShadow = '';
+        
+        if (spacer && spacer.parentNode) {
+          spacer.parentNode.removeChild(spacer);
+        }
+      }
     };
   }, []);
 
