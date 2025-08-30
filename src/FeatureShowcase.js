@@ -39,184 +39,21 @@ export default function FeatureShowcase() {
   const [activeIndex, setActiveIndex] = useState(0);
   const sectionRef = useRef(null);
   const stickyRef = useRef(null);
-  const phoneRef = useRef(null);
   const [inView, setInView] = useState(false);
-  const [isSticky, setIsSticky] = useState(false);
 
   useEffect(() => {
-    const el = phoneRef.current;
-    const stickyEl = stickyRef.current;
-    if (!el || !stickyEl) return;
-    
-    let stickyState = false;
-    let spacer = null;
-    
-    function checkVisibility() {
-      const rect = el.getBoundingClientRect();
-      
-      // Check if the phone image is visible in the viewport
-      // More lenient check - if any part is visible, make it sticky
-      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-      
-      console.log('Visibility check:', {
-        rectTop: rect.top,
-        rectBottom: rect.bottom,
-        windowHeight: window.innerHeight,
-        isVisible,
-        stickyState
-      });
-      
-      setInView(isVisible);
-      setIsSticky(isVisible);
-      
-      // Force sticky behavior using CSS classes
-      if (isVisible && !stickyState) {
-        stickyState = true;
-        
-        // Apply sticky styles directly to ensure it works
-        stickyEl.style.position = 'fixed';
-        stickyEl.style.top = '0';
-        stickyEl.style.left = '0';
-        stickyEl.style.right = '0';
-        stickyEl.style.width = '100%';
-        stickyEl.style.zIndex = '1000';
-        stickyEl.style.background = '#fff';
-        stickyEl.style.padding = '20px 0';
-        stickyEl.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
-        
-        // Add spacer to prevent content jump
-        spacer = document.createElement('div');
-        spacer.style.height = stickyEl.offsetHeight + 'px';
-        spacer.style.width = '100%';
-        spacer.id = 'sticky-spacer';
-        stickyEl.parentNode.insertBefore(spacer, stickyEl);
-        
-        console.log('Made sticky - height:', stickyEl.offsetHeight);
-      } else if (!isVisible && stickyState) {
-        stickyState = false;
-        
-        // Remove sticky styles
-        stickyEl.style.position = '';
-        stickyEl.style.top = '';
-        stickyEl.style.left = '';
-        stickyEl.style.right = '';
-        stickyEl.style.width = '';
-        stickyEl.style.zIndex = '';
-        stickyEl.style.background = '';
-        stickyEl.style.padding = '';
-        stickyEl.style.boxShadow = '';
-        
-        // Remove spacer
-        if (spacer && spacer.parentNode) {
-          spacer.parentNode.removeChild(spacer);
-          spacer = null;
-        }
-        
-        console.log('Removed sticky');
-      }
-    }
-    
-    // Check immediately and on scroll
-    checkVisibility();
-    window.addEventListener('scroll', checkVisibility, { passive: true });
-    window.addEventListener('resize', checkVisibility);
-    window.addEventListener('orientationchange', checkVisibility);
-    
-    // Also check periodically for better reliability
-    const interval = setInterval(checkVisibility, 100);
-    
-    // Force check after a short delay to handle initial load
-    setTimeout(checkVisibility, 100);
-    
-    // Also check on touch events for mobile
-    let touchStartY = 0;
-    const handleTouchStart = (e) => {
-      touchStartY = e.touches[0].clientY;
-    };
-    
-    const handleTouchMove = (e) => {
-      const touchY = e.touches[0].clientY;
-      const deltaY = touchY - touchStartY;
-      
-      // If significant vertical movement, check visibility
-      if (Math.abs(deltaY) > 5) {
-        checkVisibility();
-      }
-    };
-    
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchmove', handleTouchMove, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', checkVisibility);
-      window.removeEventListener('resize', checkVisibility);
-      window.removeEventListener('orientationchange', checkVisibility);
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
-      clearInterval(interval);
-      
-      // Clean up sticky state
-      if (stickyState) {
-        stickyEl.style.position = '';
-        stickyEl.style.top = '';
-        stickyEl.style.left = '';
-        stickyEl.style.right = '';
-        stickyEl.style.width = '';
-        stickyEl.style.zIndex = '';
-        stickyEl.style.background = '';
-        stickyEl.style.padding = '';
-        stickyEl.style.boxShadow = '';
-        
-        if (spacer && spacer.parentNode) {
-          spacer.parentNode.removeChild(spacer);
-        }
-      }
-    };
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver((entries) => setInView(entries[0].isIntersecting), { threshold: 0.8 });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  // Auto-advance features when sticky
-  useEffect(() => {
-    if (!inView) {
-      // Clear auto-advance when not in view
-      if (autoAdvanceRef.current) {
-        clearInterval(autoAdvanceRef.current);
-        autoAdvanceRef.current = null;
-      }
-      return;
-    }
-
-    // Start auto-advance when sticky
-    autoAdvanceRef.current = setInterval(() => {
-      setActiveIndex((currentIndex) => {
-        const nextIndex = currentIndex + 1;
-        if (nextIndex >= FEATURES.length) {
-          // Stop auto-advance when reaching the end
-          if (autoAdvanceRef.current) {
-            clearInterval(autoAdvanceRef.current);
-            autoAdvanceRef.current = null;
-          }
-          return currentIndex; // Stay at last feature
-        }
-        return nextIndex;
-      });
-    }, 3000); // Advance every 3 seconds
-
-    return () => {
-      if (autoAdvanceRef.current) {
-        clearInterval(autoAdvanceRef.current);
-        autoAdvanceRef.current = null;
-      }
-    };
-  }, [inView]);
-
   const lastWheelRef = useRef(0);
-  const autoAdvanceRef = useRef(null);
 
   const go = useCallback((delta) => {
     setActiveIndex((i) => Math.min(FEATURES.length - 1, Math.max(0, i + delta)));
   }, []);
-
-
 
   useEffect(() => {
     function onWheel(e) {
@@ -226,13 +63,6 @@ export default function FeatureShowcase() {
       const now = Date.now();
       const throttleOk = now - lastWheelRef.current > 250;
       if (!throttleOk) { e.preventDefault(); return; }
-      
-      // Pause auto-advance when user manually scrolls
-      if (autoAdvanceRef.current) {
-        clearInterval(autoAdvanceRef.current);
-        autoAdvanceRef.current = null;
-      }
-      
       if (e.deltaY > 0 && !atEnd) {
         e.preventDefault();
         lastWheelRef.current = now;
@@ -249,43 +79,11 @@ export default function FeatureShowcase() {
   }, [inView, activeIndex, go]);
 
   useEffect(() => {
-    let startX = 0; 
-    let startY = 0;
-    let active = false; 
-    const node = stickyRef.current; 
-    if (!node) return;
-    
-    const onStart = (e) => { 
-      active = true; 
-      startX = e.touches[0].clientX; 
-      startY = e.touches[0].clientY;
-      
-      // Pause auto-advance when user touches
-      if (autoAdvanceRef.current) {
-        clearInterval(autoAdvanceRef.current);
-        autoAdvanceRef.current = null;
-      }
-    };
-    
-    const onEnd = (e) => { 
-      if (!active) return; 
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = e.changedTouches[0].clientY - startY;
-      
-      // Only trigger if horizontal swipe is more than vertical (to avoid interfering with scroll)
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-        go(dx < 0 ? 1 : -1);
-      }
-      active = false; 
-    };
-    
-    node.addEventListener('touchstart', onStart, { passive: true }); 
-    node.addEventListener('touchend', onEnd, { passive: true });
-    
-    return () => { 
-      node.removeEventListener('touchstart', onStart); 
-      node.removeEventListener('touchend', onEnd); 
-    };
+    let startX = 0; let active = false; const node = stickyRef.current; if (!node) return;
+    const onStart = (e) => { active = true; startX = e.touches[0].clientX; };
+    const onEnd = (e) => { if (!active) return; const dx = e.changedTouches[0].clientX - startX; if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1); active = false; };
+    node.addEventListener('touchstart', onStart, { passive: true }); node.addEventListener('touchend', onEnd, { passive: true });
+    return () => { node.removeEventListener('touchstart', onStart); node.removeEventListener('touchend', onEnd); };
   }, [go]);
 
   const active = FEATURES[activeIndex];
@@ -310,11 +108,11 @@ export default function FeatureShowcase() {
                 </div>
               </div>
 
-                             <div className="phone-wrap" aria-hidden>
-                 <div className="phone real" ref={phoneRef}>
-                   <img src={active.image} alt="iPhone feature" />
-                 </div>
-               </div>
+              <div className="phone-wrap" aria-hidden>
+                <div className="phone real">
+                  <img src={active.image} alt="iPhone feature" />
+                </div>
+              </div>
 
               <div className="right">
                 <h3>Feature Showcase</h3>
@@ -335,3 +133,5 @@ export default function FeatureShowcase() {
     </div>
   );
 }
+
+
